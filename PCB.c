@@ -11,17 +11,53 @@ List* readyPriority2;
 List* waitForReply; // waiting on a send operation
 List* waitForReceive;
 
-static int currentProcessedPID; // 0 for init process
+static ProcessControlBlock* initProcess;
+
+// static int currentProcessedPID; // 0 for init process
 static int pidAvailable = 0;
 
-static void freeNode(void *pItem){
+static void freePCB(void *pItem){
     //needs to be modified as we still have to free proc_message
     free(pItem);
 }
 
+//returns 0 if failed, returns pid of the created process on success
+int createProcess(int priority){
+    int ans = 0;
+
+    if(priority < 0 || priority > 2){
+        printf("Process creation failed. Invalid priority input.\n");
+        return ans;
+    }
+    ProcessControlBlock* newPCB = (ProcessControlBlock*)malloc(sizeof(ProcessControlBlock));
+    newPCB->pid = pidAvailable;
+    ans = newPCB->pid;
+    pidAvailable++;
+
+    newPCB->priority = priority;
+    
+    switch(priority){
+        case 0:
+            List_append(readyPriority0, newPCB);
+            break;
+        case 1:
+            List_append(readyPriority1, newPCB);
+            break;
+        case 2:
+            List_append(readyPriority2, newPCB);
+            break;
+        default:
+            printf("Process creation failed. Invalid priority input.\n");
+            return ans;
+    }
+
+    return ans;
+}
+
+
 void process_init(){
 
-    ProcessControlBlock* initProcess = (ProcessControlBlock*)malloc(sizeof(ProcessControlBlock));
+    initProcess = (ProcessControlBlock*)malloc(sizeof(ProcessControlBlock));
     initProcess->pid = pidAvailable;
     pidAvailable++; //increment for other process PID
     initProcess->priority = 2;
@@ -42,7 +78,13 @@ void process_init(){
         
         switch(input){
             case 'C':
+                int priority = 3;
+                while(priority < 0 || priority > 2){
+                    printf("Enter the priority (0-2, 0 being the highest priority) n for the new PCB: ");
+                    scanf("%d", &priority);
+                }
 
+                createProcess(priority);
                 break;
             case 'F':
 
@@ -93,43 +135,12 @@ void process_init(){
 void shutDown(){
     printf("Shutting down all Processes...\n");
     
-    List_free(readyPriority0, freeNode);
-    List_free(readyPriority1, freeNode);
-    List_free(readyPriority2, freeNode);
-    List_free(waitForReply, freeNode);
-    List_free(waitForReceive, freeNode);
+    freePCB(initProcess); //TO DO: make sure this is in the correct order, init might still be in ready Queue 
+    List_free(readyPriority0, freePCB);
+    List_free(readyPriority1, freePCB);
+    List_free(readyPriority2, freePCB);
+    List_free(waitForReply, freePCB);
+    List_free(waitForReceive, freePCB);
     return;
 }
 
-//returns 0 if failed, returns pid of the created process on success
-static int createProcess(int priority){
-    int ans = 0;
-
-    if(priority < 0 || priority > 2){
-        printf("Process creation failed. Invalid priority input.\n");
-        return ans;
-    }
-    ProcessControlBlock* newPCB = (ProcessControlBlock*)malloc(sizeof(ProcessControlBlock));
-    newPCB->pid = pidAvailable;
-    ans = newPCB->pid;
-    pidAvailable++;
-
-    newPCB->priority = priority;
-    
-    switch(priority){
-        case 0:
-            List_append(readyPriority0, newPCB);
-            break;
-        case 1:
-            List_append(readyPriority1, newPCB);
-            break;
-        case 2:
-            List_append(readyPriority2, newPCB);
-            break;
-        default:
-            printf("Process creation failed. Invalid priority input.\n");
-            return ans;
-    }
-    
-    return ans;
-}
