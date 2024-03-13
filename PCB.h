@@ -28,6 +28,7 @@ struct Semaphore_s {
 static void freeNode(void *pItem);
 void process_init();
 void shutDown();
+static int createProcess(int priority);
 
 
 #endif
