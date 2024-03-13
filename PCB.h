@@ -3,18 +3,26 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "list.h"
 
-enum processState {
+enum ProcessState {
     RUNNING,
     READY,
     BLOCKED
 };
 
-struct processControlBlock {
+typedef struct ProcessControlBlock_s ProcessControlBlock;
+struct ProcessControlBlock_s {
     int pid;
     int priority;
-    enum processState pcbState;
+    enum ProcessState pcbState;
     char * message;
+};
+
+typedef struct Semaphore_s Semaphore;
+struct Semaphore_s {
+    int value;
+    List* waitingProcesses;
 };
 
 
