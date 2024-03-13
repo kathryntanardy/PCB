@@ -16,7 +16,7 @@ struct ProcessControlBlock_s {
     int pid;
     int priority;
     enum ProcessState pcbState;
-    char * message;
+    char * proc_message;
 };
 
 typedef struct Semaphore_s Semaphore;
@@ -25,8 +25,8 @@ struct Semaphore_s {
     List* waitingProcesses;
 };
 
-
-void init();
+static void freeNode(void *pItem);
+void process_init();
 void shutDown();
 
 
