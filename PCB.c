@@ -14,7 +14,7 @@ List* waitForReceive;
 static ProcessControlBlock* initProcess;
 static ProcessControlBlock* currentProcess;
 
-static int pidAvailable = 0;
+static int pidAvailable;
 
 static void freePCB(void *pItem){
     //needs to be modified as we still have to free proc_message
@@ -51,7 +51,7 @@ int createProcess(int priority){
             return ans;
     }
 
-    prinf("Process creation success.");
+    printf("Process creation success.");
     return ans;
 }
 
@@ -96,13 +96,13 @@ static int fork(){
 
 //init process cannot be killed or exited unless it is the 
 //last process in the system (i.e. no processes on any ready queue or blocked queue)
-static void kill(int pid){
+static void killProcess(int pid){
     //TO DO: current process is the process to be killed case
 
 }
 
 //Kill the currently running process
-static void exit(){
+static void exitProcess(){
     //initProcess exit
     if(currentProcess->pid == initProcess->pid){
 
@@ -144,7 +144,7 @@ static void exit(){
 
 
 void process_init(){
-
+    pidAvailable = 0;
     initProcess = (ProcessControlBlock*)malloc(sizeof(ProcessControlBlock));
     initProcess->pid = pidAvailable;
     pidAvailable++; //increment for other process PID
