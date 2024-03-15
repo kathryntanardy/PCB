@@ -8,7 +8,7 @@
 enum ProcessState {
     RUNNING,
     READY,
-    BLOCKED
+    BLOCKED,
 };
 
 typedef struct ProcessControlBlock_s ProcessControlBlock;
