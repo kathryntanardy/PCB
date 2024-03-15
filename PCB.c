@@ -44,6 +44,7 @@ int createProcess(int priority){
     ProcessControlBlock* newPCB = (ProcessControlBlock*)malloc(sizeof(ProcessControlBlock));
     newPCB->pid = pidAvailable;
     newPCB->proc_message = NULL;
+    newPCB->pcbState = READY;
     ans = newPCB->pid;
     pidAvailable++;
 
@@ -121,6 +122,7 @@ static int fork(){
 
 //init process cannot be killed or exited unless it is the 
 //last process in the system (i.e. no processes on any ready queue or blocked queue)
+//TODO: which process now gets control of the CPU
 static void killProcess(int pid){
     //TO DO: current process is the process to be killed case
     if(pid == initProcess->pid){
@@ -214,6 +216,7 @@ static void killProcess(int pid){
 
 
 //Kill the currently running process
+//TODO: which process now gets control of the CPU
 static void exitProcess(){
     //initProcess exit
     if(currentProcess->pid == initProcess->pid){
@@ -238,22 +241,64 @@ static void exitProcess(){
             freePCB(currentProcess);
             List_first(readyPriority0);
             currentProcess = List_remove(readyPriority0);
+            currentProcess->pcbState = RUNNING;
         }
         else if(List_count(readyPriority1) != 0){
             freePCB(currentProcess);
             List_first(readyPriority1);
             currentProcess = List_remove(readyPriority1);
+            currentProcess->pcbState = RUNNING;
         }
         else if(List_count(readyPriority2) != 0){
             freePCB(currentProcess);
             List_first(readyPriority2);
             currentProcess = List_remove(readyPriority2);
+            currentProcess->pcbState = RUNNING;
         }
         //TODO: configure what if its blocked in the reply and receive queue
 
         return;
     }
 }
+
+static void quantum(){
+    
+    printf("Quantum reached. Switching processes..\n");
+    int currentPriority = currentProcess->priority;
+    ProcessControlBlock * expiredProcess = currentProcess;
+    
+    if(List_count(readyPriority0) != 0){
+        List_first(readyPriority0);
+        currentProcess = List_remove(readyPriority0);
+    }else if(List_count(readyPriority1) != 0){
+        List_first(readyPriority1);
+        currentProcess = List_remove(readyPriority1);
+    }else if(List_count(readyPriority2) != 0){
+        List_first(readyPriority2);
+        currentProcess = List_remove(readyPriority2);
+    }else{
+        printf("No ready processes available. Continue executing the current Process");
+        return;
+    }
+    
+    currentProcess->pcbState = RUNNING;
+    expiredProcess->pcbState = READY;
+    switch(currentPriority){
+        case 0:
+            List_append(readyPriority0, expiredProcess);
+            break;
+        case 1:
+            List_append(readyPriority1, expiredProcess);
+            break;
+        case 2:
+            List_append(readyPriority2, expiredProcess);
+            break;
+    }
+
+    //TODO: give procInfo here after implemented
+
+}
+
 
 
 void process_init(){
@@ -299,7 +344,7 @@ void process_init(){
                 scanf("%d", &pid);
 
                 if(pid > pidAvailable){
-                    printf("There's no a process with the typed pid\n");
+                    printf("There's no a process with such  pid\n");
                     break;
                 }
 
