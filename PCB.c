@@ -166,7 +166,6 @@ static void killProcess(int pid){
             return;
         }
 
-        int priority = currentProcess->priority;
         bool isRemoved = false;
         ProcessControlBlock * searchResult;
         ProcessControlBlock * removedItem;
@@ -179,7 +178,6 @@ static void killProcess(int pid){
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
                 removedItem = List_remove(readyPriority0);
-                free(removedItem);
                 isRemoved = true;
             }
         }
@@ -189,7 +187,6 @@ static void killProcess(int pid){
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
                 removedItem = List_remove(readyPriority1);
-                free(removedItem);
                 isRemoved = true;
             }
         }
@@ -199,7 +196,6 @@ static void killProcess(int pid){
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
                 removedItem = List_remove(readyPriority2);
-                free(removedItem);
                 isRemoved = true;
             }
         }
@@ -210,7 +206,6 @@ static void killProcess(int pid){
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
                 removedItem = List_remove(waitForReply);
-                free(removedItem);
                 isRemoved = true;
             }
         }
@@ -220,7 +215,6 @@ static void killProcess(int pid){
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
                 removedItem = List_remove(waitForReceive);
-                free(removedItem);
                 isRemoved = true;
             }
         }
