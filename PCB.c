@@ -60,9 +60,6 @@ int createProcess(int priority){
         case 2:
             List_append(readyPriority2, newPCB);
             break;
-        default:
-            printf("Process creation failed. Invalid priority input.\n");
-            return ans;
     }
 
     printf("Process creation success.");
@@ -80,7 +77,6 @@ static int fork(){
         printf("Unable to fork init process");
         return 0;
     }
-
 
     int ret = 0;
     ProcessControlBlock* newProcess = (ProcessControlBlock*)malloc(sizeof(ProcessControlBlock));
@@ -384,7 +380,6 @@ void process_init(){
                 printf("Command not recognized\n");
         }
 
-        break;
     }
 
     return;
