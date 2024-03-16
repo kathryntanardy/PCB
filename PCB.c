@@ -172,7 +172,7 @@ static void killProcess(int pid){
         int * pidPointer = (int*)malloc(sizeof(int));
         *pidPointer = pid;
         
-        if(priority == 0){
+        if(List_Count(readyPriority0) != 0){
             List_first(readyPriority0);
             searchResult = List_search(readyPriority0, processComparison, pidPointer); 
             if(searchResult != NULL){
@@ -181,7 +181,7 @@ static void killProcess(int pid){
                 isRemoved = true;
             }
         }
-        if(priority == 1){
+        if(List_Count(readyPriority1) != 0 && !isRemoved){
             List_first(readyPriority1);
             searchResult = List_search(readyPriority1, processComparison, pidPointer); 
             if(searchResult != NULL){
@@ -190,7 +190,7 @@ static void killProcess(int pid){
                 isRemoved = true;
             }
         }
-        if (priority == 2){
+        if (List_Count(readyPriority2) != 0 && !isRemoved){
             List_first(readyPriority2);
             searchResult = List_search(readyPriority2, processComparison, pidPointer); 
             if(searchResult != NULL){
@@ -199,8 +199,7 @@ static void killProcess(int pid){
                 isRemoved = true;
             }
         }
-
-        if(List_count(waitForReply) != 0){
+        if(List_count(waitForReply) != 0 && isRemoved == false){
             List_first(waitForReply);
             searchResult = List_search(waitForReply, processComparison, pidPointer);
             if(searchResult != NULL){
@@ -209,7 +208,7 @@ static void killProcess(int pid){
                 isRemoved = true;
             }
         }
-        if(List_count(waitForReceive) != 0){
+        if(List_count(waitForReceive) != 0 && isRemoved == false){
             List_first(waitForReceive);
             searchResult = List_search(waitForReceive, processComparison, pidPointer);
             if(searchResult != NULL){
@@ -221,6 +220,7 @@ static void killProcess(int pid){
 
 
         if(isRemoved){
+            free(removedItem);
             printf("Succesfully removed Process %d\n", pid);
         } else{
             printf("Kill process not succesfully executed. PID not found.");
@@ -229,6 +229,7 @@ static void killProcess(int pid){
         free(pidPointer);
     }
 
+    return;
 }
 
 
