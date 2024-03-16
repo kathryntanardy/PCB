@@ -16,6 +16,7 @@ struct ProcessControlBlock_s {
     int pid;
     int priority;
     enum ProcessState pcbState;
+    int messageFrom; //contains PID of the sender
     char * proc_message;
 };
 

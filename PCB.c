@@ -6,7 +6,7 @@
 #include "PCB.h"
 
 
- //TO DO: implement everything with semaphores 
+ //TODO: implement everything with semaphores 
 
 List* readyPriority0;
 List* readyPriority1;
@@ -19,8 +19,10 @@ static ProcessControlBlock* currentProcess;
 
 static int pidAvailable;
 
-static void freePCB(void *pItem){
-    //needs to be modified as we still have to free proc_message
+static void freePCB(ProcessControlBlock *pItem){
+    if(pItem->proc_message != NULL){
+        free(pItem->proc_message);
+    }
     free(pItem);
 }
 
@@ -42,7 +44,12 @@ int createProcess(int priority){
         return ans;
     }
     ProcessControlBlock* newPCB = (ProcessControlBlock*)malloc(sizeof(ProcessControlBlock));
+    if(newPCB == NULL){
+        printf("Process creation failed due to failure of memory allocation for new process.\n");
+        return ans;
+    }
     newPCB->pid = pidAvailable;
+    newPCB->messageFrom = -1;
     newPCB->proc_message = NULL;
     newPCB->pcbState = READY;
     ans = newPCB->pid;
@@ -80,8 +87,13 @@ static int fork(){
 
     int ret = 0;
     ProcessControlBlock* newProcess = (ProcessControlBlock*)malloc(sizeof(ProcessControlBlock));
+    if(newProcess == NULL){
+        printf("Process fork failed due to failure of memory allocation for new process.\n");
+        return 0; 
+    }
     newProcess->pid = pidAvailable;
     pidAvailable++;
+    newProcess->messageFrom = currentProcess->messageFrom;
     newProcess->priority = currentProcess->priority;
     newProcess->pcbState = READY;
     
@@ -92,6 +104,11 @@ static int fork(){
     else{
         int length = strlen(currentProcess->proc_message);
         newProcess->proc_message = (char*)malloc((length+1)*sizeof(char));
+        if(newProcess->proc_message == NULL && length > 0){
+            printf("Process fork failed due to failure of memory allocation for message.\n");
+            free(newProcess);
+            return 0;
+        }
         strcpy(newProcess->proc_message, currentProcess->proc_message);
     }
 
@@ -109,16 +126,21 @@ static int fork(){
             break;
         default:
             printf("Process creation failed. Invalid priority input.\n");
+            if(newProcess->proc_message != NULL){
+                free(newProcess->proc_message);
+            }
+            free(newProcess);
             return ret;
     }
 
-    printf("Fork success");
+    printf("Fork success\n");
     return ret;
 }
 
 //init process cannot be killed or exited unless it is the 
 //last process in the system (i.e. no processes on any ready queue or blocked queue)
 //TODO: which process now gets control of the CPU
+//TODO: handle blocked processes (waiting for reply from the process killed)
 static void killProcess(int pid){
     //TO DO: current process is the process to be killed case
     if(pid == initProcess->pid){
@@ -152,6 +174,7 @@ static void killProcess(int pid){
         *pidPointer = pid;
         
         if(priority == 0){
+            List_first(readyPriority0);
             searchResult = List_search(readyPriority0, processComparison, pidPointer); 
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
@@ -161,6 +184,7 @@ static void killProcess(int pid){
             }
         }
         if(priority == 1){
+            List_first(readyPriority1);
             searchResult = List_search(readyPriority1, processComparison, pidPointer); 
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
@@ -170,6 +194,7 @@ static void killProcess(int pid){
             }
         }
         if (priority == 2){
+            List_first(readyPriority2);
             searchResult = List_search(readyPriority2, processComparison, pidPointer); 
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
@@ -180,6 +205,7 @@ static void killProcess(int pid){
         }
 
         if(List_count(waitForReply) != 0){
+            List_first(waitForReply);
             searchResult = List_search(waitForReply, processComparison, pidPointer);
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
@@ -189,6 +215,7 @@ static void killProcess(int pid){
             }
         }
         if(List_count(waitForReceive) != 0){
+            List_first(waitForReceive);
             searchResult = List_search(waitForReceive, processComparison, pidPointer);
             if(searchResult != NULL){
                 //TODO: check if it has blocked a sender or semaphore 
@@ -213,6 +240,7 @@ static void killProcess(int pid){
 
 //Kill the currently running process
 //TODO: which process now gets control of the CPU
+//TODO: handle blocked processes (waiting for reply from the process killed)
 static void exitProcess(){
     //initProcess exit
     if(currentProcess->pid == initProcess->pid){
@@ -289,10 +317,151 @@ static void quantum(){
         case 2:
             List_append(readyPriority2, expiredProcess);
             break;
+        default:
+            break;
     }
 
     //TODO: give procInfo here after implemented
 
+}
+
+static void sendMessage(int receiverPID, char * message){
+  
+    if(receiverPID == currentProcess->pid){
+        printf("Unable to send message to itself");
+        return;
+    }
+
+    int * receiverPidPointer = *((int*) receiverPID);
+    receiverPidPointer = *((int*) receiverPID);
+
+    int queue = -1;
+
+    List_first(readyPriority0);
+    List_first(readyPriority1);
+    List_first(readyPriority2);
+    List_first(waitForReceive);
+    //Documentation: Processes blocked to wait for replies won't be able to receive any message
+
+    if(List_search(readyPriority0, processComparison, receiverPidPointer) != NULL){
+        queue = 0;
+    }else if(List_search(readyPriority1, processComparison, receiverPidPointer) != NULL){
+        queue = 1;
+    }else if(List_search(readyPriority2, processComparison, receiverPidPointer) != NULL){
+        queue = 2;
+    }else if(List_search(waitForReceive, processComparison, receiverPidPointer) != NULL){
+        queue = -2;
+    }else if(List_search(waitForReply, processComparison, receiverPidPointer) != NULL){
+        queue = -3;
+    }
+    
+    size_t length;
+    ProcessControlBlock * receivingProcess; 
+
+    if(queue >= 0){
+        switch(queue){
+            case 0:
+                List_first(readyPriority0);
+                receivingProcess = List_search(readyPriority0, processComparison, receiverPidPointer);
+                    break;
+            case 1:
+                List_first(readyPriority1);
+                receivingProcess = List_search(readyPriority1, processComparison, receiverPidPointer);
+                    break;
+            case 2:
+                List_first(readyPriority2);
+                receivingProcess = List_search(readyPriority2, processComparison, receiverPidPointer);
+                    break;
+            default:
+                    break;
+        }   
+        
+        length = strlen(message);
+        receivingProcess->proc_message = malloc(length);
+        strncpy(receivingProcess->proc_message, message, length);
+        receivingProcess->proc_message[length - 1] = '\0';
+        receivingProcess->messageFrom = currentProcess->pid;
+        
+        if(currentProcess->pid = initProcess->pid){
+            printf("Init process remains running as it can't be blocked");
+        }else{
+            currentProcess->pcbState = BLOCKED;
+            List_append(waitForReply, currentProcess);
+
+            if(List_count(readyPriority0) != 0){
+                List_first(readyPriority0);
+                currentProcess = List_remove(readyPriority0);
+            }else if(List_count(readyPriority1) != 0){
+                List_first(readyPriority1);
+                currentProcess = List_remove(readyPriority1);
+            }else if(List_count(readyPriority2) != 0){
+                List_first(readyPriority2);
+                currentProcess = List_remove(readyPriority2);
+            }
+
+            currentProcess->pcbState = RUNNING;
+            return;
+        }
+    }
+    else{
+        if(queue == -3){
+            printf("Unable to send message as process is only waiting for a reply");
+            return;
+        }
+        else if(queue = -2){
+            List_first(waitForReceive);
+            //Unblock receiving process and move it to the ready queue
+            receivingProcess = List_search(waitForReceive, processComparison, receiverPidPointer);
+            List_remove(waitForReceive);
+            
+            length = strlen(message);
+            receivingProcess->proc_message = malloc(length);
+            strncpy(receivingProcess->proc_message, message, length);
+            receivingProcess->proc_message[length - 1] = '\0';
+            receivingProcess->messageFrom = currentProcess->pid;
+            receivingProcess->pcbState = READY;
+
+            int priority = receivingProcess->priority;
+
+            switch(priority){
+                case 0:
+                    List_append(readyPriority0, receivingProcess);
+                    break;
+                case 1:
+                    List_append(readyPriority1, receivingProcess);
+                    break;
+                case 2:
+                    List_append(readyPriority2, receivingProcess);
+                    break;
+                default:
+                    break;
+            }
+        
+            if(currentProcess->pid = initProcess->pid){
+                printf("Init process remains running as it can't be blocked");
+            }else{
+                currentProcess->pcbState = BLOCKED;
+                List_append(waitForReply, currentProcess);
+
+                if(List_count(readyPriority0) != 0){
+                    List_first(readyPriority0);
+                    currentProcess = List_remove(readyPriority0);
+                }else if(List_count(readyPriority1) != 0){
+                    List_first(readyPriority1);
+                    currentProcess = List_remove(readyPriority1);
+                }else if(List_count(readyPriority2) != 0){
+                    List_first(readyPriority2);
+                    currentProcess = List_remove(readyPriority2);
+                }
+
+                currentProcess->pcbState = RUNNING;
+                return;
+            }
+        }
+    }
+
+    free(receiverPidPointer);
+    return;
 }
 
 
@@ -304,6 +473,7 @@ void process_init(){
     pidAvailable++; //increment for other process PID
     initProcess->priority = 2;
     initProcess->pcbState = RUNNING;
+    initProcess->messageFrom = -1;
     initProcess->proc_message = NULL;
     currentProcess = initProcess;
 
@@ -378,6 +548,7 @@ void process_init(){
                 break;
             default:
                 printf("Command not recognized\n");
+                break;
         }
 
     }
