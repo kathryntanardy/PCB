@@ -18,6 +18,9 @@ static ProcessControlBlock *currentProcess;
 
 static int pidAvailable;
 
+#define MSG_MAX_LENGTH 41
+static char * inputMessage[MSG_MAX_LENGTH];
+
 //TODO: procInfo to let know changing process
 static void changeRunningProcess(){
 
@@ -35,6 +38,14 @@ static void changeRunningProcess(){
     }
 
     currentProcess->pcbState = RUNNING;
+
+    if(currentProcess->proc_reply != NULL){
+        printf("A reply from process %d: ", currentProcess->messageRepliedFrom);
+        printf("%s\n", currentProcess->proc_reply);
+        free(currentProcess->proc_reply);
+        currentProcess->proc_reply = NULL;
+        currentProcess->messageRepliedFrom = -1;
+    }
 }
 
 static void readyProcess(ProcessControlBlock * process){
@@ -64,6 +75,11 @@ static void freePCB(ProcessControlBlock *pItem)
     {
         free(pItem->proc_message);
     }
+
+    if(pItem->proc_reply != NULL){
+        free(pItem->proc_reply);
+    }
+
     free(pItem);
 }
 
@@ -141,43 +157,11 @@ static int fork()
     newProcess->priority = currentProcess->priority;
     newProcess->messageRepliedFrom = currentProcess->messageRepliedFrom;
     newProcess->pcbState = READY;
+    newProcess->proc_message = NULL;
+    newProcess->messageFrom = -1;
+    newProcess->proc_reply = -1;
+    newProcess->proc_message = NULL;
 
-    // Copy proc_message based on the state of the Current Process' proc_message
-    if (currentProcess->proc_message == NULL)
-    {
-        newProcess->proc_message = NULL;
-    }
-    else
-    {
-        int length = strlen(currentProcess->proc_message);
-        newProcess->proc_message = (char *)malloc((length + 1) * sizeof(char));
-        if (newProcess->proc_message == NULL && length > 0)
-        {
-            printf("Process fork failed due to failure of memory allocation for message.\n");
-            free(newProcess);
-            return 0;
-        }
-        strcpy(newProcess->proc_message, currentProcess->proc_message);
-    }
-
-    if (currentProcess->proc_reply == NULL)
-    {
-        newProcess->proc_reply = NULL;
-    }
-    else
-    {
-        int length = strlen(currentProcess->proc_reply);
-        newProcess->proc_reply = (char *)malloc((length + 1) * sizeof(char));
-        if (newProcess->proc_reply == NULL && length > 0)
-        {
-            printf("Process fork failed due to failure of memory allocation for message.\n");
-            free(newProcess);
-            return 0;
-        }
-        strcpy(newProcess->proc_reply, currentProcess->proc_reply);
-    }
-
-    int priority = newProcess->priority;
     ret = newProcess->pid;
     readyProcess(newProcess);
 
@@ -557,7 +541,7 @@ void process_init()
             break;
         case 'K':
             int pid = -1;
-            printf("Enter the pid oyou want to remove from the system: ");
+            printf("Enter the pid you want to remove from the system: ");
             scanf("%d", &pid);
 
             if (pid > pidAvailable)
@@ -569,19 +553,46 @@ void process_init()
             killProcess(pid);
             break;
         case 'E':
-
+            exitProcess();
             break;
         case 'Q':
-
+            quantum();
             break;
         case 'S':
+            int pidReceiving;
+            printf("Enter the PID you want to send the message to: ");
+            scanf("%d", &pidReceiving);
 
+            if (pidReceiving > pidAvailable)
+            {
+                printf("There's no a process with such  pid\n");
+                break;
+            }
+
+            printf("\n");
+            printf("Please enter message (Max 40 chars): ");
+            fgets(inputMessage, MSG_MAX_LENGTH, stdin);
+            inputMessage[MSG_MAX_LENGTH - 1] = '\0';
+            sendMessage(pidReceiving, inputMessage);
             break;
         case 'R':
-
+            receiveMessage();
             break;
         case 'Y':
+            int pidReplied;
+            printf("Enter the PID you want to reply a message to: ");
+            scanf("%d", &pidReplied);
 
+            if (pidReplied > pidAvailable)
+            {
+                printf("There's no a process with such  pid\n");
+                break;
+            }
+            printf("\n");
+            printf("Please enter reply (Max 40 chars): ");
+            fgets(inputMessage, MSG_MAX_LENGTH, stdin);
+            inputMessage[MSG_MAX_LENGTH - 1] = '\0';
+            sendMessage(pidReplied, inputMessage);
             break;
         case 'N':
 
