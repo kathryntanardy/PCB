@@ -505,6 +505,59 @@ static void sendMessage(int receiverPID, char *message)
     return;
 }
 
+static void receiveMessage(){
+    if(currentProcess->proc_message == NULL && currentProcess->pid == initProcess->pid){
+        printf("No message for init process received. Continue running.. ");
+    }
+    else if(currentProcess->proc_message == NULL){
+        currentProcess->pcbState = BLOCKED;
+
+        List_append(waitForReceive, currentProcess);
+
+        if (List_count(readyPriority0) != 0)
+        {
+            List_first(readyPriority0);
+            currentProcess = List_remove(readyPriority0);
+        }
+        else if (List_count(readyPriority1) != 0)
+        {
+            List_first(readyPriority1);
+            currentProcess = List_remove(readyPriority1);
+        }
+        else if (List_count(readyPriority2) != 0)
+        {
+            List_first(readyPriority2);
+            currentProcess = List_remove(readyPriority2);
+        }
+        //TODO: procInfo to let know changing process
+        currentProcess->pcbState = RUNNING;  
+    }
+    else if (currentProcess->proc_message != NULL){
+        printf("Received message from Process %d: \n", currentProcess->messageFrom);
+        printf("%s\n", currentProcess->proc_message);
+        free(currentProcess->proc_message);
+        currentProcess->messageFrom = -1;
+        currentProcess->proc_message = NULL;
+    }
+
+    return;
+}
+
+void reply(int repliedPID, char * message){
+    if (repliedPID == currentProcess->pid)
+    {
+        printf("Unable to reply message to itself");
+        return;
+    }
+
+    int *receiverPidPointer = (int*)malloc(sizeof(int));
+    *receiverPidPointer = repliedPID;
+
+    
+    free(receiverPidPointer);
+}
+
+
 void process_init()
 {
     pidAvailable = 0;
