@@ -259,7 +259,7 @@ static void killProcess(int pid)
                 isRemoved = true;
             }
         }
-        if (List_count(waitForReply) != 0 && isRemoved == false)
+        if (List_count(waitForReply) != 0 && !isRemoved)
         {
             List_first(waitForReply);
             searchResult = List_search(waitForReply, processComparison, pidPointer);
@@ -270,7 +270,7 @@ static void killProcess(int pid)
                 isRemoved = true;
             }
         }
-        if (List_count(waitForReceive) != 0 && isRemoved == false)
+        if (List_count(waitForReceive) != 0 && !isRemoved)
         {
             List_first(waitForReceive);
             searchResult = List_search(waitForReceive, processComparison, pidPointer);
@@ -404,39 +404,20 @@ static void sendMessage(int receiverPID, char *message)
         switch (queue)
         {
         case 0:
-            List_first(readyPriority0);
-            receivingProcess = List_search(readyPriority0, processComparison, receiverPidPointer);
+            receivingProcess = List_curr(readyPriority0);
             break;
         case 1:
-            List_first(readyPriority1);
-            receivingProcess = List_search(readyPriority1, processComparison, receiverPidPointer);
+            receivingProcess = List_curr(readyPriority1);
             break;
         case 2:
-            List_first(readyPriority2);
-            receivingProcess = List_search(readyPriority2, processComparison, receiverPidPointer);
+            receivingProcess = List_curr(readyPriority2);
             break;
         case -2:
-            List_first(waitForReceive);
             // Unblock receiving process and move it to the ready queue
-            receivingProcess = List_search(waitForReceive, processComparison, receiverPidPointer);
+            receivingProcess = List_curr(waitForReceive);
             List_remove(waitForReceive);
 
-            int priority = receivingProcess->priority;
-
-            switch (priority)
-            {
-            case 0:
-                List_append(readyPriority0, receivingProcess);
-                break;
-            case 1:
-                List_append(readyPriority1, receivingProcess);
-                break;
-            case 2:
-                List_append(readyPriority2, receivingProcess);
-                break;
-            default:
-                break;
-            }
+            readyProcess(receivingProcess);
 
             break;
         }
@@ -456,23 +437,7 @@ static void sendMessage(int receiverPID, char *message)
             currentProcess->pcbState = BLOCKED;
             List_append(waitForReply, currentProcess);
 
-            if (List_count(readyPriority0) != 0)
-            {
-                List_first(readyPriority0);
-                currentProcess = List_remove(readyPriority0);
-            }
-            else if (List_count(readyPriority1) != 0)
-            {
-                List_first(readyPriority1);
-                currentProcess = List_remove(readyPriority1);
-            }
-            else if (List_count(readyPriority2) != 0)
-            {
-                List_first(readyPriority2);
-                currentProcess = List_remove(readyPriority2);
-            }
-
-            currentProcess->pcbState = RUNNING;
+            changeRunningProcess();
             return;
         }
     }
@@ -513,7 +478,7 @@ static void receiveMessage(){
     return;
 }
 
-//document: make sure the process has previously received all message before sending
+
 void reply(int repliedPID, char * message){
     if (repliedPID == currentProcess->pid)
     {
@@ -527,7 +492,7 @@ void reply(int repliedPID, char * message){
     ProcessControlBlock * repliedProcess = NULL;
     List_first(waitForReply);
     repliedProcess = List_search(waitForReply, processComparison, repliedPidPointer);
-    List_remove(repliedProcess);
+    List_remove(waitForReply);
 
     if(repliedProcess == NULL){
         printf("No Process %d to reply to.\n", repliedPID);
