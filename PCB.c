@@ -543,6 +543,7 @@ static void receiveMessage(){
     return;
 }
 
+//document: make sure the process has previously received all message before sending
 void reply(int repliedPID, char * message){
     if (repliedPID == currentProcess->pid)
     {
@@ -550,11 +551,27 @@ void reply(int repliedPID, char * message){
         return;
     }
 
-    int *receiverPidPointer = (int*)malloc(sizeof(int));
-    *receiverPidPointer = repliedPID;
+    int *repliedPidPointer = (int*)malloc(sizeof(int));
+    *repliedPidPointer = repliedPID;
 
+
+    ProcessControlBlock * repliedProcess = NULL;
+    List_first(waitForReply);
+    repliedProcess = List_search(waitForReply, processComparison, repliedPidPointer);
     
-    free(receiverPidPointer);
+    if(repliedProcess == NULL){
+        printf("No Process %d to reply to.\n", repliedPID);
+    }
+    else{
+        size_t length = strlen(message);
+        repliedProcess->proc_message = malloc(length + 1);
+        strncpy(repliedProcess->proc_message, message, length);
+        repliedProcess->proc_message[length] = '\0';
+        repliedProcess->messageFrom = currentProcess->pid;
+    }
+
+    free(repliedPidPointer);
+    return;
 }
 
 
