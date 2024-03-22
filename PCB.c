@@ -496,6 +496,49 @@ void reply(int repliedPID, char * message){
     return;
 }
 
+static void iterateQueue(List * pcbList){
+    int num = List_count(pcbList);
+    
+    if(num == 0){
+        printf("There is no PCB in this queue.\n");
+        return;
+    }
+
+    List_first(pcbList);
+    ProcessControlBlock * iter;
+    for(int i = 0; i < num; i++){
+        iter = List_curr(pcbList);
+        printf("%d", iter->pid);
+
+        if(i == num - 1){
+            printf(".\n");
+        }else{
+            printf(", ");
+        }
+        List_next(pcbList);
+    }
+
+    return;
+}
+
+static void totalInfo(){
+    printf("Currently running Process: %d\n", currentProcess->pid);
+
+    printf("Processes in Ready Priority Queue 0 (high): \n");
+    iterateQueue(readyPriority0);
+
+    printf("Processes in Ready Priority Queue 1 (mid): \n");
+    iterateQueue(readyPriority1);
+
+    printf("Processes in Ready Priority Queue 2 (low): \n");
+    iterateQueue(readyPriority2);
+
+    printf("Processes blocked writing for reply: \n");
+    iterateQueue(waitForReply);
+
+    printf("Processes blocked writing for receive: \n");
+    iterateQueue(waitForReceive);
+}
 
 void process_init()
 {
