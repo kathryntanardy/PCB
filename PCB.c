@@ -18,6 +18,45 @@ static ProcessControlBlock *currentProcess;
 
 static int pidAvailable;
 
+static void changeRunningProcess(){
+
+    if(List_count(readyPriority0) != 0){
+        List_first(readyPriority0);
+        currentProcess = List_remove(readyPriority0);
+    }else if(List_count(readyPriority1) != 0){
+        List_first(readyPriority1);
+        currentProcess = List_remove(readyPriority1);
+    }else if(List_count(readyPriority2) != 0){
+        List_first(readyPriority2);
+        currentProcess = List_remove(readyPriority2);
+    }else{
+        printf("No other ready processes available. Continue executing current Process..\n");
+    }
+
+    currentProcess->pcbState = RUNNING;
+}
+
+static void readyProcess(ProcessControlBlock * process){
+    int priority = process->priority;
+    process->pcbState = READY;
+
+    if(priority == 0){
+        List_append(readyPriority0, process);
+    }
+    else if (priority == 1){
+        List_append(readyPriority1, process);
+    }
+    else if(priority == 2){
+        List_append(readyPriority2, process);
+    }
+    else{
+        printf("Invalid priority input.\n");
+    }
+
+    return;
+}
+
+
 static void freePCB(ProcessControlBlock *pItem)
 {
     if (pItem->proc_message != NULL)
@@ -37,6 +76,8 @@ static int processComparison(ProcessControlBlock *iter, void *pid)
 
     return 0;
 }
+
+
 
 // returns 0 if failed, returns pid of the created process on success
 int createProcess(int priority)
@@ -58,27 +99,19 @@ int createProcess(int priority)
     newPCB->messageFrom = -1;
     newPCB->proc_message = NULL;
     newPCB->pcbState = READY;
+    newPCB->messageRepliedFrom = -1;
+    newPCB->proc_reply = NULL;
     ans = newPCB->pid;
     pidAvailable++;
-
     newPCB->priority = priority;
 
-    switch (priority)
-    {
-    case 0:
-        List_append(readyPriority0, newPCB);
-        break;
-    case 1:
-        List_append(readyPriority1, newPCB);
-        break;
-    case 2:
-        List_append(readyPriority2, newPCB);
-        break;
-    }
+    readyProcess(newPCB);
 
     printf("Process creation success.");
     return ans;
 }
+
+
 
 // Copy the currently running process and put it on the ready Q
 // corresponding to the original process' priority
@@ -105,6 +138,7 @@ static int fork()
     pidAvailable++;
     newProcess->messageFrom = currentProcess->messageFrom;
     newProcess->priority = currentProcess->priority;
+    newProcess->messageRepliedFrom = currentProcess->messageRepliedFrom;
     newProcess->pcbState = READY;
 
     // Copy proc_message based on the state of the Current Process' proc_message
@@ -125,28 +159,26 @@ static int fork()
         strcpy(newProcess->proc_message, currentProcess->proc_message);
     }
 
+    if (currentProcess->proc_reply == NULL)
+    {
+        newProcess->proc_reply = NULL;
+    }
+    else
+    {
+        int length = strlen(currentProcess->proc_reply);
+        newProcess->proc_reply = (char *)malloc((length + 1) * sizeof(char));
+        if (newProcess->proc_reply == NULL && length > 0)
+        {
+            printf("Process fork failed due to failure of memory allocation for message.\n");
+            free(newProcess);
+            return 0;
+        }
+        strcpy(newProcess->proc_reply, currentProcess->proc_reply);
+    }
+
     int priority = newProcess->priority;
     ret = newProcess->pid;
-    switch (priority)
-    {
-    case 0:
-        List_append(readyPriority0, newProcess);
-        break;
-    case 1:
-        List_append(readyPriority1, newProcess);
-        break;
-    case 2:
-        List_append(readyPriority2, newProcess);
-        break;
-    default:
-        printf("Process creation failed. Invalid priority input.\n");
-        if (newProcess->proc_message != NULL)
-        {
-            free(newProcess->proc_message);
-        }
-        free(newProcess);
-        return ret;
-    }
+    readyProcess(newProcess);
 
     printf("Fork success\n");
     return ret;
@@ -295,23 +327,8 @@ static void exitProcess()
         // remove current Process and look for the next running Process in the ready queue
         printf("Exiting current process with PID %d\n.. ",currentProcess->pid);
         freePCB(currentProcess);
-        if (List_count(readyPriority0) != 0)
-        {
-            List_first(readyPriority0);
-            currentProcess = List_remove(readyPriority0);
-        }
-        else if (List_count(readyPriority1) != 0)
-        {
-            List_first(readyPriority1);
-            currentProcess = List_remove(readyPriority1);
-        }
-        else if (List_count(readyPriority2) != 0)
-        {
-            List_first(readyPriority2);
-            currentProcess = List_remove(readyPriority2);
-        }
-
-        currentProcess->pcbState = RUNNING;
+        
+        changeRunningProcess();
         // TODO: configure what if its blocked in the reply and receive queue
 
         return;
@@ -325,44 +342,13 @@ static void quantum()
     int currentPriority = currentProcess->priority;
     ProcessControlBlock *expiredProcess = currentProcess;
 
-    if (List_count(readyPriority0) != 0)
-    {
-        List_first(readyPriority0);
-        currentProcess = List_remove(readyPriority0);
-    }
-    else if (List_count(readyPriority1) != 0)
-    {
-        List_first(readyPriority1);
-        currentProcess = List_remove(readyPriority1);
-    }
-    else if (List_count(readyPriority2) != 0)
-    {
-        List_first(readyPriority2);
-        currentProcess = List_remove(readyPriority2);
-    }
-    else
-    {
-        printf("No ready processes available. Continue executing the current Process");
-        return;
-    }
+    changeRunningProcess();
 
-    currentProcess->pcbState = RUNNING;
-    expiredProcess->pcbState = READY;
-    switch (currentPriority)
-    {
-    case 0:
-        List_append(readyPriority0, expiredProcess);
-        break;
-    case 1:
-        List_append(readyPriority1, expiredProcess);
-        break;
-    case 2:
-        List_append(readyPriority2, expiredProcess);
-        break;
-    default:
-        break;
+    if(currentProcess->pid != expiredProcess->pid){
+        expiredProcess->pcbState = READY;
+        readyProcess(expiredProcess);
     }
-
+    
     // TODO: give procInfo here after implemented
 }
 
@@ -458,7 +444,7 @@ static void sendMessage(int receiverPID, char *message)
         receivingProcess->proc_message = malloc(length + 1);
         strncpy(receivingProcess->proc_message, message, length);
         receivingProcess->proc_message[length] = '\0';
-        receivingProcess->messageFrom = currentProcess->pid;
+        receivingProcess->messageRepliedFrom = currentProcess->pid;
 
         if (currentProcess->pid == initProcess->pid)
         {
@@ -554,20 +540,32 @@ void reply(int repliedPID, char * message){
     int *repliedPidPointer = (int*)malloc(sizeof(int));
     *repliedPidPointer = repliedPID;
 
-
     ProcessControlBlock * repliedProcess = NULL;
     List_first(waitForReply);
     repliedProcess = List_search(waitForReply, processComparison, repliedPidPointer);
-    
+    List_remove(repliedProcess);
+
+
     if(repliedProcess == NULL){
         printf("No Process %d to reply to.\n", repliedPID);
     }
     else{
         size_t length = strlen(message);
-        repliedProcess->proc_message = malloc(length + 1);
-        strncpy(repliedProcess->proc_message, message, length);
-        repliedProcess->proc_message[length] = '\0';
-        repliedProcess->messageFrom = currentProcess->pid;
+        repliedProcess->proc_reply = malloc(length + 1);
+        strncpy(repliedProcess->proc_reply, message, length);
+        repliedProcess->proc_reply[length] = '\0';
+        repliedProcess->proc_reply = currentProcess->pid;
+        
+        repliedProcess->pcbState = READY;
+        int priority = repliedProcess->priority;
+        
+        if(priority == 0){
+            List_append(readyPriority0, repliedProcess);
+        }else if(priority == 1){
+            List_append(readyPriority1, repliedProcess);
+        }else if(priority == 2){
+            List_append(readyPriority2, repliedProcess);
+        }
     }
 
     free(repliedPidPointer);

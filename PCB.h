@@ -18,6 +18,8 @@ struct ProcessControlBlock_s {
     enum ProcessState pcbState;
     int messageFrom; //contains PID of the sender
     char * proc_message;
+    int messageRepliedFrom;
+    char * proc_reply;
 };
 
 typedef struct Semaphore_s Semaphore;
