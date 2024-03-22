@@ -18,6 +18,7 @@ static ProcessControlBlock *currentProcess;
 
 static int pidAvailable;
 
+//TODO: procInfo to let know changing process
 static void changeRunningProcess(){
 
     if(List_count(readyPriority0) != 0){
@@ -497,26 +498,9 @@ static void receiveMessage(){
     }
     else if(currentProcess->proc_message == NULL){
         currentProcess->pcbState = BLOCKED;
-
         List_append(waitForReceive, currentProcess);
 
-        if (List_count(readyPriority0) != 0)
-        {
-            List_first(readyPriority0);
-            currentProcess = List_remove(readyPriority0);
-        }
-        else if (List_count(readyPriority1) != 0)
-        {
-            List_first(readyPriority1);
-            currentProcess = List_remove(readyPriority1);
-        }
-        else if (List_count(readyPriority2) != 0)
-        {
-            List_first(readyPriority2);
-            currentProcess = List_remove(readyPriority2);
-        }
-        //TODO: procInfo to let know changing process
-        currentProcess->pcbState = RUNNING;  
+        changeRunningProcess();
     }
     else if (currentProcess->proc_message != NULL){
         printf("Received message from Process %d: \n", currentProcess->messageFrom);
@@ -545,7 +529,6 @@ void reply(int repliedPID, char * message){
     repliedProcess = List_search(waitForReply, processComparison, repliedPidPointer);
     List_remove(repliedProcess);
 
-
     if(repliedProcess == NULL){
         printf("No Process %d to reply to.\n", repliedPID);
     }
@@ -556,16 +539,8 @@ void reply(int repliedPID, char * message){
         repliedProcess->proc_reply[length] = '\0';
         repliedProcess->proc_reply = currentProcess->pid;
         
-        repliedProcess->pcbState = READY;
-        int priority = repliedProcess->priority;
-        
-        if(priority == 0){
-            List_append(readyPriority0, repliedProcess);
-        }else if(priority == 1){
-            List_append(readyPriority1, repliedProcess);
-        }else if(priority == 2){
-            List_append(readyPriority2, repliedProcess);
-        }
+        readyProcess(repliedProcess);
+       
     }
 
     free(repliedPidPointer);
