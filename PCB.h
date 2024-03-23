@@ -29,6 +29,8 @@ struct Semaphore_s {
 };
 
 
+void freePCB(void *pItem);
+bool processComparison(void *iter, void *pid);
 void process_init();
 void shutDown();
 

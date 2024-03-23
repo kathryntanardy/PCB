@@ -19,7 +19,7 @@ static ProcessControlBlock *currentProcess;
 static int pidAvailable;
 
 #define MSG_MAX_LENGTH 41
-static char * inputMessage[MSG_MAX_LENGTH];
+static char inputMessage[MSG_MAX_LENGTH];
 
 //TODO: procInfo to let know changing process
 static void changeRunningProcess(){
@@ -69,24 +69,28 @@ static void readyProcess(ProcessControlBlock * process){
 }
 
 
-static void freePCB(ProcessControlBlock *pItem)
+void freePCB(void *pItem)
 {
-    if (pItem->proc_message != NULL)
+
+    ProcessControlBlock* item = (ProcessControlBlock*)pItem;
+
+    if (item->proc_message != NULL)
     {
-        free(pItem->proc_message);
+        free(item->proc_message);
     }
 
-    if(pItem->proc_reply != NULL){
-        free(pItem->proc_reply);
+    if(item->proc_reply != NULL){
+        free(item->proc_reply);
     }
 
     free(pItem);
 }
 
-static int processComparison(ProcessControlBlock *iter, void *pid)
+bool processComparison(void *iter, void *pid)
 {
+    ProcessControlBlock * iterPCB = (ProcessControlBlock*)iter;
     int value = *((int *)pid);
-    if (iter->pid == value)
+    if (iterPCB->pid == value)
     {
         return 1;
     }
@@ -153,20 +157,57 @@ static int fork()
     }
     newProcess->pid = pidAvailable;
     pidAvailable++;
-    newProcess->messageFrom = currentProcess->messageFrom;
     newProcess->priority = currentProcess->priority;
-    newProcess->messageRepliedFrom = currentProcess->messageRepliedFrom;
     newProcess->pcbState = READY;
     newProcess->proc_message = NULL;
     newProcess->messageFrom = -1;
-    newProcess->proc_reply = -1;
-    newProcess->proc_message = NULL;
+    newProcess->messageRepliedFrom = -1;
+    newProcess->proc_reply = NULL;
 
     ret = newProcess->pid;
     readyProcess(newProcess);
 
     printf("Fork success\n");
     return ret;
+}
+
+
+// Kill the currently running process
+// TODO: which process now gets control of the CPU
+// TODO: handle blocked processes (waiting for reply from the process killed)
+static void exitProcess()
+{
+    // initProcess exit
+    if (currentProcess->pid == initProcess->pid)
+    {
+        // If init process is the last process, terminate
+        if (List_count(readyPriority0) == 0 &&
+            List_count(readyPriority1) == 0 &&
+            List_count(readyPriority2) == 0 &&
+            List_count(waitForReply) == 0 &&
+            List_count(waitForReceive) == 0)
+        {
+            printf("Exiting init process, shutting down system..");
+            freePCB(initProcess);
+            shutDown();
+        }
+        else
+        {
+            printf("Init process cannot be exited unless it is the last process in the system");
+            return;
+        }
+    }
+    else
+    { // The case where it is not the init process
+        // remove current Process and look for the next running Process in the ready queue
+        printf("Exiting current process with PID %d\n.. ",currentProcess->pid);
+        freePCB(currentProcess);
+        
+        changeRunningProcess();
+        // TODO: configure what if its blocked in the reply and receive queue
+
+        return;
+    }
 }
 
 // init process cannot be killed or exited unless it is the
@@ -210,7 +251,7 @@ static void killProcess(int pid)
         int *pidPointer = (int *)malloc(sizeof(int));
         *pidPointer = pid;
 
-        if (List_Count(readyPriority0) != 0)
+        if (List_count(readyPriority0) != 0)
         {
             List_first(readyPriority0);
             searchResult = List_search(readyPriority0, processComparison, pidPointer);
@@ -221,7 +262,7 @@ static void killProcess(int pid)
                 isRemoved = true;
             }
         }
-        if (List_Count(readyPriority1) != 0 && !isRemoved)
+        if (List_count(readyPriority1) != 0 && !isRemoved)
         {
             List_first(readyPriority1);
             searchResult = List_search(readyPriority1, processComparison, pidPointer);
@@ -232,7 +273,7 @@ static void killProcess(int pid)
                 isRemoved = true;
             }
         }
-        if (List_Count(readyPriority2) != 0 && !isRemoved)
+        if (List_count(readyPriority2) != 0 && !isRemoved)
         {
             List_first(readyPriority2);
             searchResult = List_search(readyPriority2, processComparison, pidPointer);
@@ -282,49 +323,10 @@ static void killProcess(int pid)
     return;
 }
 
-// Kill the currently running process
-// TODO: which process now gets control of the CPU
-// TODO: handle blocked processes (waiting for reply from the process killed)
-static void exitProcess()
-{
-    // initProcess exit
-    if (currentProcess->pid == initProcess->pid)
-    {
-        // If init process is the last process, terminate
-        if (List_count(readyPriority0) == 0 &&
-            List_count(readyPriority1) == 0 &&
-            List_count(readyPriority2) == 0 &&
-            List_count(waitForReply) == 0 &&
-            List_count(waitForReceive) == 0)
-        {
-            printf("Exiting init process, shutting down system..");
-            freePCB(initProcess);
-            shutDown();
-        }
-        else
-        {
-            printf("Init process cannot be exited unless it is the last process in the system");
-            return;
-        }
-    }
-    else
-    { // The case where it is not the init process
-        // remove current Process and look for the next running Process in the ready queue
-        printf("Exiting current process with PID %d\n.. ",currentProcess->pid);
-        freePCB(currentProcess);
-        
-        changeRunningProcess();
-        // TODO: configure what if its blocked in the reply and receive queue
-
-        return;
-    }
-}
-
 static void quantum()
 {
 
     printf("Quantum reached. Switching processes..\n");
-    int currentPriority = currentProcess->priority;
     ProcessControlBlock *expiredProcess = currentProcess;
 
     changeRunningProcess();
@@ -470,7 +472,7 @@ void reply(int repliedPID, char * message){
         return;
     }
 
-    int *repliedPidPointer = (int*)malloc(sizeof(int));
+    int *repliedPidPointer = (int*)malloc(sizeof(int)); 
     *repliedPidPointer = repliedPID;
 
     ProcessControlBlock * repliedProcess = NULL;
@@ -486,7 +488,7 @@ void reply(int repliedPID, char * message){
         repliedProcess->proc_reply = malloc(length + 1);
         strncpy(repliedProcess->proc_reply, message, length);
         repliedProcess->proc_reply[length] = '\0';
-        repliedProcess->proc_reply = currentProcess->pid;
+        repliedProcess->messageRepliedFrom = currentProcess->pid;
         
         readyProcess(repliedProcess);
        
@@ -500,7 +502,7 @@ static void iterateQueue(List * pcbList){
     int num = List_count(pcbList);
     
     if(num == 0){
-        printf("There is no PCB in this queue.\n");
+        printf("Empty.\n\n");
         return;
     }
 
@@ -518,10 +520,27 @@ static void iterateQueue(List * pcbList){
         List_next(pcbList);
     }
 
+    printf("\n");
     return;
 }
 
+
+void shutDown()
+{
+    printf("Shutting down all Processes...\n");
+
+    List_free(readyPriority0, freePCB);
+    List_free(readyPriority1, freePCB);
+    List_free(readyPriority2, freePCB);
+    List_free(waitForReply, freePCB);
+    List_free(waitForReceive, freePCB);
+    exit(0);
+}
+
+
 static void totalInfo(){
+
+    printf("======================================\n");
     printf("Currently running Process: %d\n", currentProcess->pid);
 
     printf("Processes in Ready Priority Queue 0 (high): \n");
@@ -538,6 +557,7 @@ static void totalInfo(){
 
     printf("Processes blocked writing for receive: \n");
     iterateQueue(waitForReceive);
+    printf("======================================\n");
 }
 
 void process_init()
@@ -564,7 +584,7 @@ void process_init()
     {
         printf("Enter command:  \n");
         char input;
-        scanf("%c", &input);
+        scanf(" %c", &input);
 
         switch (input)
         {
@@ -586,7 +606,7 @@ void process_init()
             int pid = -1;
             printf("Enter the pid you want to remove from the system: ");
             scanf("%d", &pid);
-
+            
             if (pid > pidAvailable)
             {
                 printf("There's no a process with such  pid\n");
@@ -650,25 +670,17 @@ void process_init()
 
             break;
         case 'T':
-
+            totalInfo();
+            break;
+        case '\n':
             break;
         default:
             printf("Command not recognized\n");
             break;
         }
+
+        printf("\n");
     }
 
     return;
-}
-
-void shutDown()
-{
-    printf("Shutting down all Processes...\n");
-
-    List_free(readyPriority0, freePCB);
-    List_free(readyPriority1, freePCB);
-    List_free(readyPriority2, freePCB);
-    List_free(waitForReply, freePCB);
-    List_free(waitForReceive, freePCB);
-    exit(0);
 }
