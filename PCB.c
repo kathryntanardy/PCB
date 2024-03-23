@@ -145,7 +145,7 @@ static int fork()
     // Attempting to Fork the "init" process should fail
     if (currentProcess->pid == 0)
     {
-        printf("Unable to fork init process");
+        printf("Unable to fork init process\n");
         return 0;
     }
 
