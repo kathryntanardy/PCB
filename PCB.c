@@ -38,6 +38,7 @@ static void changeRunningProcess(){
     }
 
     currentProcess->pcbState = RUNNING;
+    printf("Process %d is now running.\n", currentProcess->pid);
 
     if(currentProcess->proc_reply != NULL){
         printf("A reply from process %d: ", currentProcess->messageRepliedFrom);
@@ -128,7 +129,7 @@ int createProcess(int priority)
 
     readyProcess(newPCB);
 
-    printf("Process creation success.");
+    printf("Process creation success.\n");
     return ans;
 }
 
@@ -200,7 +201,7 @@ static void exitProcess()
     else
     { // The case where it is not the init process
         // remove current Process and look for the next running Process in the ready queue
-        printf("Exiting current process with PID %d\n.. ",currentProcess->pid);
+        printf("Exiting current process with PID %d..\n ",currentProcess->pid);
         freePCB(currentProcess);
         
         changeRunningProcess();
@@ -310,11 +311,11 @@ static void killProcess(int pid)
         if (isRemoved)
         {
             free(removedItem);
-            printf("Succesfully removed Process %d\n", pid);
+            printf("Succesfully removed Process %d from the system.\n", pid);
         }
         else
         {
-            printf("Kill process not succesfully executed. PID not found.");
+            printf("Kill process not succesfully executed. PID not found.\n");
         }
 
         free(pidPointer);
@@ -363,27 +364,23 @@ static void sendMessage(int receiverPID, char *message)
 
     if (List_search(readyPriority0, processComparison, receiverPidPointer) != NULL)
     {
-        printf("Ada di 0");
         queue = 0;
     }
     else if (List_search(readyPriority1, processComparison, receiverPidPointer) != NULL)
     {
-        printf("Ada di 1");
+
         queue = 1;
     }
     else if (List_search(readyPriority2, processComparison, receiverPidPointer) != NULL)
     {
-        printf("Ada di 2");
         queue = 2;
     }
     else if (List_search(waitForReceive, processComparison, receiverPidPointer) != NULL)
     {
-        printf("Ada di waitforReceive");
         queue = -2;
     }
     else if (List_search(waitForReply, processComparison, receiverPidPointer) != NULL)
     {
-        printf("Ada di waitforReply");
         queue = -3;
     }
 
@@ -417,7 +414,7 @@ static void sendMessage(int receiverPID, char *message)
         receivingProcess->proc_message = malloc(length + 1);
         strncpy(receivingProcess->proc_message, message, length);
         receivingProcess->proc_message[length] = '\0';
-        receivingProcess->messageRepliedFrom = currentProcess->pid;
+        receivingProcess->messageFrom = currentProcess->pid;
 
         if (currentProcess->pid == initProcess->pid)
         {
@@ -453,6 +450,8 @@ static void receiveMessage(){
         printf("No message for init process received. Continue running.. ");
     }
     else if(currentProcess->proc_message == NULL){
+
+        printf("No message received. Blocking until it receives one.. \n");
         currentProcess->pcbState = BLOCKED;
         List_append(waitForReceive, currentProcess);
 
@@ -640,7 +639,6 @@ void process_init()
             int c;
             while((c = getchar()) != '\n' && c != EOF);
 
-            printf("\n");
             printf("Please enter message (Max 40 chars): ");
             fgets(inputMessage, MSG_MAX_LENGTH, stdin);
             inputMessage[MSG_MAX_LENGTH - 1] = '\0';
@@ -662,8 +660,6 @@ void process_init()
 
             int a;
             while((a = getchar()) != '\n' && a!= EOF);
-
-            printf("\n");
             printf("Please enter reply (Max 40 chars): ");
             fgets(inputMessage, MSG_MAX_LENGTH, stdin);
             inputMessage[MSG_MAX_LENGTH - 1] = '\0';
