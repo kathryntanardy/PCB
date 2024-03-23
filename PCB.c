@@ -16,6 +16,8 @@ List *waitForReceive;
 static ProcessControlBlock *initProcess;
 static ProcessControlBlock *currentProcess;
 
+static Semaphore semaphores [] = {{-1,NULL}, {-1,NULL}, {-1,NULL}, {-1,NULL}, {-1,NULL}};
+
 static int pidAvailable;
 
 #define MSG_MAX_LENGTH 41
@@ -541,6 +543,162 @@ void shutDown()
     exit(0);
 }
 
+int newSemaphore(int semID, int initValue)
+{
+    if (semID < 0 || semID > 4)
+    {
+        printf("Invalid semaphore ID. Please enter a number between 0 and 4\n");
+        return -1;
+    }
+    if (initValue < 0)
+    {
+        printf("Invalid initial value. Please enter a number greater than or equal to 0\n");
+        return -1;
+    }
+    if (semaphores[semID].value != -1)
+    {
+        printf("Semaphore with ID %d already exists\n", semID);
+        return -1;
+    }
+    semaphores[semID].value = initValue;
+    semaphores[semID].waitingProcesses = List_create();
+    printf("Semaphore with ID %d and initial value %d created\n", semID, initValue);
+    return 0;
+}
+
+int semaphoreP(int semID)
+{
+    if (currentProcess->pid == initProcess->pid)
+    {
+        printf("Init process cannot be blocked\n");
+        return -1;
+    }
+
+    if (semID < 0 || semID > 4)
+    {
+        printf("Invalid semaphore ID. Please enter a number between 0 and 4\n");
+        return -1;
+    }
+    if (semaphores[semID].value == -1)
+    {
+        printf("Semaphore with ID %d does not exist\n", semID);
+        return -1;
+    }
+    else
+    {
+        currentProcess->pcbState = BLOCKED;
+        List_append(semaphores[semID].waitingProcesses, currentProcess);
+        changeRunningProcess();
+        return 0;
+    }
+}
+
+int semaphoreV(int semID)
+{
+    if (semID < 0 || semID > 4)
+    {
+        printf("Invalid semaphore ID. Please enter a number between 0 and 4\n");
+        return -1;
+    }
+    if(List_count(semaphores[semID].waitingProcesses) == 0){
+        printf("Semaphore with ID %d does not block anything\n", semID);
+        return -1;
+    }
+    if (semaphores[semID].value == -1)
+    {
+        printf("Semaphore with ID %d does not exist\n", semID);
+        return -1;
+    }
+    else
+    {
+
+        
+        ProcessControlBlock *nextProcess = List_remove(semaphores[semID].waitingProcesses);
+        readyProcess(nextProcess);
+        
+        return 0;
+    
+    }
+}
+
+int procinfo (int pid)
+{
+    if (pid < 0 || pid > pidAvailable)
+    {
+        printf("Invalid PID. Please enter a number between 0 and %d\n", pidAvailable);
+        return -1;
+    }
+    if (currentProcess->pid == pid)
+    {
+        printf("Process %d is currently running\n", pid);
+        return 0;
+    }
+
+    List_first(readyPriority0);
+    List_first(readyPriority1);
+    List_first(readyPriority2);
+    List_first(waitForReceive);
+    List_first(waitForReply);
+    ProcessControlBlock *item;
+    item = List_search(readyPriority0, processComparison, &pid);
+    if (item != NULL)
+    {
+        printf("Process %d is in readyPriority0, pcb state is %d\n", pid, item->pcbState);
+        return 0;
+    }
+    item = List_search(readyPriority1, processComparison, &pid);
+    if (item != NULL)
+    {
+        printf("Process %d is in readyPriority1, pcb state is %d\n", pid, item->pcbState);
+        return 0;
+    }
+    item = List_search(readyPriority2, processComparison, &pid);
+    if (item != NULL)
+    {
+        printf("Process %d is in readyPriority2, pcb state is %d\n", pid, item->pcbState);
+        return 0;
+    }
+    item = List_search(waitForReceive, processComparison, &pid);
+    if (item != NULL)
+    {
+        printf("Process %d is in waitForReceive, pcb state is %d\n", pid, item->pcbState);
+        return 0;
+    }
+    item = List_search(waitForReply, processComparison, &pid);
+    if (item != NULL)
+    {
+        printf("Process %d is in waitForReply, pcb state is %d\n", pid, item->pcbState);
+        return 0;
+    }
+    for (int i = 0; i < 5; i++)
+    {
+        if (semaphores[i].value != -1)
+        {
+            item = List_search(semaphores[i].waitingProcesses, processComparison, &pid);
+            if (item != NULL)
+            {
+                switch (item->pcbState)
+                {
+                    case BLOCKED:
+                    printf("Process %d is waiting on semaphore %d, pcb state is blocked\n", pid, i);
+                    break;
+                    case READY:
+                    printf("Process %d is waiting on semaphore %d, pcb state is ready\n", pid, i);
+                    break;
+                    case RUNNING:
+                    printf("Process %d is waiting on semaphore %d, pcb state is running\n", pid, i);
+                    break;
+                }
+                return 0;
+            }
+        }
+    }
+    printf("Process %d is not in any queue\n", pid);
+    return 0;
+}
+
+
+
 
 static void totalInfo(){
 
@@ -561,6 +719,15 @@ static void totalInfo(){
 
     printf("Processes blocked writing for receive: \n");
     iterateQueue(waitForReceive);
+
+    for (int i = 0; i < 5; i++)
+    {
+        if (semaphores[i].value != -1)
+        {
+            printf("Processes waiting on semaphore %d: \n", i);
+            iterateQueue(semaphores[i].waitingProcesses);
+        }
+    }
     printf("======================================\n");
 }
 
@@ -666,22 +833,36 @@ void process_init()
             reply(pidReplied, inputMessage);
             break;
         case 'N':
-
+            int semID, initValue;
+            printf("Enter the semaphore ID and initial value: ");
+            scanf("%d %d", &semID, &initValue);
+            newSemaphore(semID, initValue);
             break;
         case 'P':
+            int semIDP;
+            printf("Enter the semaphore ID you want to P: ");
+            scanf("%d", &semIDP);
+            semaphoreP(semIDP);
 
             break;
         case 'V':
+            int semIDV;
+            printf("Enter the semaphore ID you want to V: ");
+            scanf("%d", &semIDV);
+            semaphoreV(semIDV);
 
             break;
         case 'I':
-
+            int pidInfo;
+            printf("Enter the PID you want to get info about: ");
+            scanf("%d", &pidInfo);
+            procinfo(pidInfo);
             break;
         case 'T':
             totalInfo();
             break;
-        case '\n':
-            break;
+        case '!':
+            return;
         default:
             printf("Command not recognized\n");
             break;
