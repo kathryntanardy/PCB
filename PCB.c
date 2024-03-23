@@ -363,22 +363,27 @@ static void sendMessage(int receiverPID, char *message)
 
     if (List_search(readyPriority0, processComparison, receiverPidPointer) != NULL)
     {
+        printf("Ada di 0");
         queue = 0;
     }
     else if (List_search(readyPriority1, processComparison, receiverPidPointer) != NULL)
     {
+        printf("Ada di 1");
         queue = 1;
     }
     else if (List_search(readyPriority2, processComparison, receiverPidPointer) != NULL)
     {
+        printf("Ada di 2");
         queue = 2;
     }
     else if (List_search(waitForReceive, processComparison, receiverPidPointer) != NULL)
     {
+        printf("Ada di waitforReceive");
         queue = -2;
     }
     else if (List_search(waitForReply, processComparison, receiverPidPointer) != NULL)
     {
+        printf("Ada di waitforReply");
         queue = -3;
     }
 
@@ -632,6 +637,9 @@ void process_init()
                 break;
             }
 
+            int c;
+            while((c = getchar()) != '\n' && c != EOF);
+
             printf("\n");
             printf("Please enter message (Max 40 chars): ");
             fgets(inputMessage, MSG_MAX_LENGTH, stdin);
@@ -651,11 +659,15 @@ void process_init()
                 printf("There's no a process with such  pid\n");
                 break;
             }
+
+            int a;
+            while((a = getchar()) != '\n' && a!= EOF);
+
             printf("\n");
             printf("Please enter reply (Max 40 chars): ");
             fgets(inputMessage, MSG_MAX_LENGTH, stdin);
             inputMessage[MSG_MAX_LENGTH - 1] = '\0';
-            sendMessage(pidReplied, inputMessage);
+            reply(pidReplied, inputMessage);
             break;
         case 'N':
 
