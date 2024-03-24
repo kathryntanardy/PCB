@@ -18,6 +18,8 @@ struct ProcessControlBlock_s {
     enum ProcessState pcbState;
     int messageFrom; //contains PID of the sender
     char * proc_message;
+    int messageRepliedFrom;
+    char * proc_reply;
 };
 
 typedef struct Semaphore_s Semaphore;
@@ -27,6 +29,8 @@ struct Semaphore_s {
 };
 
 
+void freePCB(void *pItem);
+bool processComparison(void *iter, void *pid);
 void process_init();
 void shutDown();
 
