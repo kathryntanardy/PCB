@@ -191,7 +191,6 @@ static void exitProcess()
             List_count(waitForReceive) == 0)
         {
             printf("Exiting init process, shutting down system..");
-            freePCB(initProcess);
             shutDown();
         }
         else
@@ -534,7 +533,7 @@ static void iterateQueue(List * pcbList){
 void shutDown()
 {
     printf("Shutting down all Processes...\n");
-
+    freePCB(currentProcess);
     List_free(readyPriority0, freePCB);
     List_free(readyPriority1, freePCB);
     List_free(readyPriority2, freePCB);
@@ -751,7 +750,7 @@ static void totalInfo(){
 
     for (int i = 0; i < 5; i++)
     {
-        if (semaphores[i].value != -1)
+        if (semaphores[i].waitingProcesses != NULL)
         {
             printf("Processes waiting on semaphore %d: \n", i);
             iterateQueue(semaphores[i].waitingProcesses);
@@ -891,6 +890,7 @@ void process_init()
             totalInfo();
             break;
         case '!':
+            shutDown();
             return;
         default:
             printf("Command not recognized\n");
