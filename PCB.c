@@ -540,6 +540,13 @@ void shutDown()
     List_free(readyPriority2, freePCB);
     List_free(waitForReply, freePCB);
     List_free(waitForReceive, freePCB);
+    for (int i = 0; i < 5; i++)
+    {
+        if (semaphores[i].value != -1)
+        {
+            List_free(semaphores[i].waitingProcesses, freePCB);
+        }
+    }
     exit(0);
 }
 
@@ -585,11 +592,21 @@ int semaphoreP(int semID)
         return -1;
     }
     else
-    {
-        currentProcess->pcbState = BLOCKED;
-        List_append(semaphores[semID].waitingProcesses, currentProcess);
-        changeRunningProcess();
-        return 0;
+    {   
+        semaphores[semID].value--;
+        if (semaphores[semID].value < 0)
+        {
+            printf("Process %d is blocked on semaphore %d\n", currentProcess->pid, semID);
+            currentProcess->pcbState = BLOCKED;
+            List_append(semaphores[semID].waitingProcesses, currentProcess);
+            changeRunningProcess();
+            return 0;
+        }
+        else
+        {
+            printf("Process is not blocked because Semaphore with ID %d have value %d\n", semID, semaphores[semID].value);
+            return 0;
+        }
     }
 }
 
@@ -600,21 +617,33 @@ int semaphoreV(int semID)
         printf("Invalid semaphore ID. Please enter a number between 0 and 4\n");
         return -1;
     }
-    if(List_count(semaphores[semID].waitingProcesses) == 0){
-        printf("Semaphore with ID %d does not block anything\n", semID);
-        return -1;
-    }
-    if (semaphores[semID].value == -1)
+    if (semaphores[semID].waitingProcesses == NULL)
     {
         printf("Semaphore with ID %d does not exist\n", semID);
         return -1;
     }
+    if(List_count(semaphores[semID].waitingProcesses) == 0){
+        printf("Semaphore with ID %d does not block anything\n", semID);
+        return -1;
+    }
+    
     else
     {
-
+        semaphores[semID].value++;
+        if (semaphores[semID].value <= 0)
+        {
+            
+            List_first(semaphores[semID].waitingProcesses);
+            ProcessControlBlock *nextProcess = List_remove(semaphores[semID].waitingProcesses);
+            printf("Process %d is unblocked on semaphore %d\n", nextProcess->pid, semID);
+            nextProcess->pcbState = READY;
+            readyProcess(nextProcess);
+        }
+        else
+        {
+            printf("Process is not unblocked because Semaphore with ID %d have value %d\n", semID, semaphores[semID].value);
+        }
         
-        ProcessControlBlock *nextProcess = List_remove(semaphores[semID].waitingProcesses);
-        readyProcess(nextProcess);
         
         return 0;
     
