@@ -11,6 +11,7 @@ List *readyPriority0;
 List *readyPriority1;
 List *readyPriority2;
 List *waitForReply; // waiting on a send operation
+List * initQueue;
 List *waitForReceive;
 
 static ProcessControlBlock *initProcess;
@@ -36,7 +37,8 @@ static void changeRunningProcess(){
         List_first(readyPriority2);
         currentProcess = List_remove(readyPriority2);
     }else{
-        printf("No other ready processes available. Continue executing current Process..\n");
+        List_first(initQueue);
+        currentProcess = List_remove(initQueue);
     }
 
     currentProcess->pcbState = RUNNING;
@@ -64,8 +66,11 @@ static void readyProcess(ProcessControlBlock * process){
     else if(priority == 2){
         List_append(readyPriority2, process);
     }
+    else if(priority == 3){
+        List_append(initQueue, process);
+    }
     else{
-        printf("Invalid priority input.\n");
+        printf("Invalid process' priority\n");
     }
 
     return;
@@ -131,6 +136,11 @@ int createProcess(int priority)
 
     readyProcess(newPCB);
 
+    if(currentProcess->pid == initProcess->pid){
+        readyProcess(currentProcess);
+        changeRunningProcess();
+    }
+
     printf("Process creation success.\n");
     return ans;
 }
@@ -195,7 +205,7 @@ static void exitProcess()
         }
         else
         {
-            printf("Init process cannot be exited unless it is the last process in the system");
+            printf("Init process cannot be exited unless it is the last process in the system\n");
             return;
         }
     }
@@ -356,9 +366,15 @@ static void sendMessage(int receiverPID, char *message)
     List_first(readyPriority2);
     List_first(waitForReceive);
     List_first(waitForReply);
+    List_first(initQueue);
     // Documentation: Processes blocked to wait for replies won't be able to receive any message
-
-    if (List_search(readyPriority0, processComparison, receiverPidPointer) != NULL)
+    
+    
+    if (List_search(initQueue, processComparison, receiverPidPointer) != NULL)
+    {
+        queue = -4;
+    }
+    else if (List_search(readyPriority0, processComparison, receiverPidPointer) != NULL)
     {
         queue = 0;
     }
@@ -383,7 +399,7 @@ static void sendMessage(int receiverPID, char *message)
     size_t length;
     ProcessControlBlock *receivingProcess;
 
-    if (queue >= 0 || queue == -2)
+    if (queue >= 0 || queue == -2 || queue == -4)
     {
         switch (queue)
         {
@@ -395,6 +411,9 @@ static void sendMessage(int receiverPID, char *message)
             break;
         case 2:
             receivingProcess = List_curr(readyPriority2);
+            break;
+        case -4:
+            receivingProcess = List_curr(initQueue);
             break;
         case -2:
             // Unblock receiving process and move it to the ready queue
@@ -534,6 +553,7 @@ void shutDown()
     List_free(readyPriority2, freePCB);
     List_free(waitForReply, freePCB);
     List_free(waitForReceive, freePCB);
+    List_free(initQueue, freePCB);
     for (int i = 0; i < 5; i++)
     {
         if (semaphores[i].waitingProcesses != NULL)
@@ -644,6 +664,7 @@ int semaphoreV(int semID)
     }
 }
 
+//DOCUMENTATION: pcbState
 int procinfo (int pid)
 {
     if (pid < 0 || pid > pidAvailable)
@@ -662,35 +683,42 @@ int procinfo (int pid)
     List_first(readyPriority2);
     List_first(waitForReceive);
     List_first(waitForReply);
+    List_first(initQueue);
     ProcessControlBlock *item;
     item = List_search(readyPriority0, processComparison, &pid);
     if (item != NULL)
     {
-        printf("Process %d is in readyPriority0, pcb state is %d\n", pid, item->pcbState);
+        printf("Process %d is in readyPriority0, pcb state is ready\n", pid);
         return 0;
     }
     item = List_search(readyPriority1, processComparison, &pid);
     if (item != NULL)
     {
-        printf("Process %d is in readyPriority1, pcb state is %d\n", pid, item->pcbState);
+        printf("Process %d is in readyPriority1, pcb state is ready\n", pid);
         return 0;
     }
     item = List_search(readyPriority2, processComparison, &pid);
     if (item != NULL)
     {
-        printf("Process %d is in readyPriority2, pcb state is %d\n", pid, item->pcbState);
+        printf("Process %d is in readyPriority2, pcb state is ready\n", pid);
         return 0;
     }
     item = List_search(waitForReceive, processComparison, &pid);
     if (item != NULL)
     {
-        printf("Process %d is in waitForReceive, pcb state is %d\n", pid, item->pcbState);
+        printf("Process %d is in waitForReceive, pcb state is blocked\n", pid);
         return 0;
     }
     item = List_search(waitForReply, processComparison, &pid);
     if (item != NULL)
     {
-        printf("Process %d is in waitForReply, pcb state is %d\n", pid, item->pcbState);
+        printf("Process %d is in waitForReply, pcb state is blocked\n", pid);
+        return 0;
+    }
+    item = List_search(initQueue, processComparison, &pid);
+    if (item != NULL)
+    {
+        printf("Process %d is the init process, pcb state is ready\n", pid);
         return 0;
     }
     for (int i = 0; i < 5; i++)
@@ -716,7 +744,7 @@ int procinfo (int pid)
             }
         }
     }
-    printf("Process %d is not in any queue\n", pid);
+    printf("Process %d does not exist in the system\n", pid);
     return 0;
 }
 
@@ -736,6 +764,9 @@ static void totalInfo(){
 
     printf("Processes in Ready Priority Queue 2 (low): \n");
     iterateQueue(readyPriority2);
+
+    printf("The init process queue: \n");
+    iterateQueue(initQueue);
 
     printf("Processes blocked writing for reply: \n");
     iterateQueue(waitForReply);
@@ -760,7 +791,7 @@ void process_init()
     initProcess = (ProcessControlBlock *)malloc(sizeof(ProcessControlBlock));
     initProcess->pid = pidAvailable;
     pidAvailable++; // increment for other process PID
-    initProcess->priority = 2;
+    initProcess->priority = 3;
     initProcess->pcbState = RUNNING;
     initProcess->messageFrom = -1;
     initProcess->proc_message = NULL;
@@ -772,6 +803,7 @@ void process_init()
     readyPriority2 = List_create();
     waitForReply = List_create();
     waitForReceive = List_create();
+    initQueue = List_create();
 
     printf("Processing init process\n");
     while (1)
