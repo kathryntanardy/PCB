@@ -541,7 +541,7 @@ void shutDown()
     List_free(waitForReceive, freePCB);
     for (int i = 0; i < 5; i++)
     {
-        if (semaphores[i].value != -1)
+        if (semaphores[i].waitingProcesses != NULL)
         {
             List_free(semaphores[i].waitingProcesses, freePCB);
         }
@@ -585,7 +585,7 @@ int semaphoreP(int semID)
         printf("Invalid semaphore ID. Please enter a number between 0 and 4\n");
         return -1;
     }
-    if (semaphores[semID].value == -1)
+    if (semaphores[semID].waitingProcesses == NULL)
     {
         printf("Semaphore with ID %d does not exist\n", semID);
         return -1;
@@ -789,7 +789,7 @@ void process_init()
         {
         case 'C':
             int priority = -1;
-            printf("Enter the priority (0-2, 0 being the highest priority) n for the new PCB: ");
+            printf("Enter the priority (0-2, 0 being the highest priority) n for the new PCB: \n");
             scanf("%d", &priority);
             if (priority < 0 || priority > 2)
             {
@@ -803,7 +803,7 @@ void process_init()
             break;
         case 'K':
             int pid = -1;
-            printf("Enter the pid you want to remove from the system: ");
+            printf("Enter the pid you want to remove from the system: \n");
             scanf("%d", &pid);
             
             if (pid > pidAvailable)
@@ -822,7 +822,7 @@ void process_init()
             break;
         case 'S':
             int pidReceiving;
-            printf("Enter the PID you want to send the message to: ");
+            printf("Enter the PID you want to send the message to: \n");
             scanf("%d", &pidReceiving);
 
             if (pidReceiving > pidAvailable)
@@ -834,7 +834,7 @@ void process_init()
             int c;
             while((c = getchar()) != '\n' && c != EOF);
 
-            printf("Please enter message (Max 40 chars): ");
+            printf("Please enter message (Max 40 chars): \n");
             fgets(inputMessage, MSG_MAX_LENGTH, stdin);
             inputMessage[MSG_MAX_LENGTH - 1] = '\0';
             sendMessage(pidReceiving, inputMessage);
@@ -844,7 +844,7 @@ void process_init()
             break;
         case 'Y':
             int pidReplied;
-            printf("Enter the PID you want to reply a message to: ");
+            printf("Enter the PID you want to reply a message to: \n");
             scanf("%d", &pidReplied);
 
             if (pidReplied > pidAvailable)
@@ -855,34 +855,36 @@ void process_init()
 
             int a;
             while((a = getchar()) != '\n' && a!= EOF);
-            printf("Please enter reply (Max 40 chars): ");
+            printf("Please enter reply (Max 40 chars): \n");
             fgets(inputMessage, MSG_MAX_LENGTH, stdin);
             inputMessage[MSG_MAX_LENGTH - 1] = '\0';
             reply(pidReplied, inputMessage);
             break;
         case 'N':
             int semID, initValue;
-            printf("Enter the semaphore ID and initial value: ");
-            scanf("%d %d", &semID, &initValue);
+            printf("Enter the semaphore ID:\n ");
+            scanf("%d", &semID);
+            printf("Enter the initial value of the semaphore %d:\n ", semID);
+            scanf("%d", &initValue);
             newSemaphore(semID, initValue);
             break;
         case 'P':
             int semIDP;
-            printf("Enter the semaphore ID you want to P: ");
+            printf("Enter the semaphore ID you want to P: \n");
             scanf("%d", &semIDP);
             semaphoreP(semIDP);
 
             break;
         case 'V':
             int semIDV;
-            printf("Enter the semaphore ID you want to V: ");
+            printf("Enter the semaphore ID you want to V: \n");
             scanf("%d", &semIDV);
             semaphoreV(semIDV);
 
             break;
         case 'I':
             int pidInfo;
-            printf("Enter the PID you want to get info about: ");
+            printf("Enter the PID you want to get info about: \n");
             scanf("%d", &pidInfo);
             procinfo(pidInfo);
             break;
