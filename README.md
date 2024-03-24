@@ -24,5 +24,3 @@ Reply ≠ Receive. A process might receive a message from a Send command or rece
 1. Messages waiting for reply (after sending a message) would not be able to receive a message.
 2. Processes blocked by the handling of Semaphores won't be able to receive message. 
 
-### Commands 🍵
-
