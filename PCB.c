@@ -259,7 +259,6 @@ static void killProcess(int pid)
             searchResult = List_search(readyPriority0, processComparison, pidPointer);
             if (searchResult != NULL)
             {
-                // TODO: check if it has blocked a sender or semaphore
                 removedItem = List_remove(readyPriority0);
                 isRemoved = true;
             }
@@ -270,7 +269,6 @@ static void killProcess(int pid)
             searchResult = List_search(readyPriority1, processComparison, pidPointer);
             if (searchResult != NULL)
             {
-                // TODO: check if it has blocked a sender or semaphore
                 removedItem = List_remove(readyPriority1);
                 isRemoved = true;
             }
@@ -281,7 +279,6 @@ static void killProcess(int pid)
             searchResult = List_search(readyPriority2, processComparison, pidPointer);
             if (searchResult != NULL)
             {
-                // TODO: check if it has blocked a sender or semaphore
                 removedItem = List_remove(readyPriority2);
                 isRemoved = true;
             }
@@ -292,7 +289,6 @@ static void killProcess(int pid)
             searchResult = List_search(waitForReply, processComparison, pidPointer);
             if (searchResult != NULL)
             {
-                // TODO: check if it has blocked a sender or semaphore
                 removedItem = List_remove(waitForReply);
                 isRemoved = true;
             }
@@ -303,7 +299,6 @@ static void killProcess(int pid)
             searchResult = List_search(waitForReceive, processComparison, pidPointer);
             if (searchResult != NULL)
             {
-                // TODO: check if it has blocked a sender or semaphore
                 removedItem = List_remove(waitForReceive);
                 isRemoved = true;
             }
