@@ -10,6 +10,7 @@ Enter "!" to finish the whole process.<br/>
 #### Init Process Handling
 Init cannot be killed or exited unless it is the last process in the system. <br/>
 Send and Receive will also not block the init process.<br/>
+Init process can only run when no other process exists in the system. <br/>
 Init process will automatically be replaced once another process is created (Calling the 'C' command will trigger this)
 
 #### Multiple Send(s) to the same Process
