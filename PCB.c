@@ -452,7 +452,7 @@ static void sendMessage(int receiverPID, char *message)
             return;
         }
         else{
-            printf("PID not found in the system. Failed to send message.\n");
+            printf("PID is either not found in the system or blocked by the Semaphores. Failed to send message.\n");
         }
     }
 
