@@ -425,6 +425,12 @@ static void sendMessage(int receiverPID, char *message)
             break;
         }
 
+        if(receivingProcess->proc_message != NULL){
+            printf("Unable to send message to this process as it has previously received an unread message\n");
+            free(receiverPidPointer);
+            return;
+        }
+
         length = strlen(message);
         receivingProcess->proc_message = malloc(length + 1);
         strncpy(receivingProcess->proc_message, message, length);
