@@ -6,6 +6,7 @@
 ### Some Introduction 🍯
 make and type in ./output to start the system. <br/>
 Enter "!" to finish the whole process.<br/>
+PID are non-negative integers <br/>
 
 #### Init Process Handling
 Init cannot be killed or exited unless it is the last process in the system. <br/>
