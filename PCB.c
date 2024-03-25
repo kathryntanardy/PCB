@@ -37,8 +37,12 @@ static void changeRunningProcess(){
         List_first(readyPriority2);
         currentProcess = List_remove(readyPriority2);
     }else{
-        List_first(initQueue);
-        currentProcess = List_remove(initQueue);
+        if(currentProcess == NULL){
+            List_first(initQueue);
+            currentProcess = List_remove(initQueue);
+        }else{
+            printf("No other process ready. continue running current process\n");
+        }
     }
 
     currentProcess->pcbState = RUNNING;
@@ -342,8 +346,7 @@ static void quantum()
         expiredProcess->pcbState = READY;
         readyProcess(expiredProcess);
     }
-    
-    // TODO: give procInfo here after implemented
+  
 }
 
 static void sendMessage(int receiverPID, char *message)
@@ -447,6 +450,7 @@ static void sendMessage(int receiverPID, char *message)
             List_append(waitForReply, currentProcess);
 
             changeRunningProcess();
+            free(receiverPidPointer);
             return;
         }
     }
